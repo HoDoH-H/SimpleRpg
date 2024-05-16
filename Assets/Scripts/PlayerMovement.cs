@@ -1,22 +1,29 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Mirror;
 
-public class PlayerMovement : MonoBehaviour
+public class GridBasedMovement : NetworkBehaviour
 {
+
     public Transform movePoint;
-    public Animator anim;
-    public InputSystem_Actions playerControls;
     public LayerMask whatStopsMovement;
 
-    public float moveSpeed = 6f;
+    public float moveSpeed;
+
     private Vector2 direction;
 
+    public InputSystem_Actions playerControls;
     private InputAction move;
 
-    void Awake()
+    private void Awake()
+    {
+        playerControls = new InputSystem_Actions();
+    }
+
+    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    void Start()
     {
         movePoint.parent = null;
-        playerControls = new InputSystem_Actions();
     }
 
     private void OnEnable()
@@ -31,40 +38,42 @@ public class PlayerMovement : MonoBehaviour
         move.Disable();
     }
 
-
-    void Update()
+    private void Update()
     {
-        transform.position = Vector3.MoveTowards(transform.position, movePoint.position, moveSpeed*Time.deltaTime);
-
-        direction = move.ReadValue<Vector2>();
-        if (direction.x != 0 && direction.y != 0)
+        if (isLocalPlayer)
         {
-            if (direction.x > 0)
-            {
-                direction.x = 1;
-            }
-            else
-            {
-                direction.x = -1;
-            }
-            direction.y = 0;
-        }
+            transform.position = Vector3.MoveTowards(transform.position, movePoint.position, moveSpeed * Time.deltaTime);
 
-        if (Vector3.Distance(transform.position, movePoint.position) <= 0.05f)
-        {
-            if (Mathf.Abs(direction.x) > 0)
+            direction = move.ReadValue<Vector2>();
+            if (direction.x != 0 && direction.y != 0)
             {
-                if (Physics2D.OverlapCircle(movePoint.position + new Vector3(direction.x, 0, 0), 0.45f, whatStopsMovement))
+                if (direction.x > 0)
                 {
-                    movePoint.position += new Vector3(direction.x, 0, 0);
+                    direction.x = 1;
                 }
+                else
+                {
+                    direction.x = -1;
+                }
+                direction.y = 0;
             }
 
-            if (Mathf.Abs(direction.y) > 0)
+            if (Vector3.Distance(transform.position, movePoint.position) <= 0.05f)
             {
-                if (!Physics2D.OverlapCircle(movePoint.position + new Vector3(0, direction.y, 0), 0.45f, whatStopsMovement))
+                if (Mathf.Abs(direction.x) > 0)
                 {
-                    movePoint.position += new Vector3(0, direction.y, 0);
+                    if (!Physics2D.OverlapCircle(movePoint.position + new Vector3(direction.x, 0, 0), 0.45f, whatStopsMovement))
+                    {
+                        movePoint.position += new Vector3(direction.x, 0, 0);
+                    }
+                }
+
+                if (Mathf.Abs(direction.y) > 0)
+                {
+                    if (!Physics2D.OverlapCircle(movePoint.position + new Vector3(0, direction.y, 0), 0.45f, whatStopsMovement))
+                    {
+                        movePoint.position += new Vector3(0, direction.y, 0);
+                    }
                 }
             }
         }
