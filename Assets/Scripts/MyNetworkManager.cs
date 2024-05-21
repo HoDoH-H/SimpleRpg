@@ -63,6 +63,19 @@ public class MyNetworkManager : NetworkManager
         subscenesLoaded = true;
     }
 
+    public override void OnClientChangeScene(string sceneName, SceneOperation sceneOperation, bool customHandling)
+    {
+        if (sceneOperation == SceneOperation.UnloadAdditive)
+        {
+            StartCoroutine(UnloadAdditive(sceneName));
+        }
+
+        if (sceneOperation == SceneOperation.LoadAdditive)
+        {
+            StartCoroutine(LoadAdditive(sceneName));
+        }
+    }
+
     IEnumerator LoadAdditive(string sceneName)
     {
         isInTransition = true;
@@ -116,5 +129,49 @@ public class MyNetworkManager : NetworkManager
         isInTransition = false; 
         
         OnClientSceneChanged();
+    }
+
+
+    public override void OnServerReady(NetworkConnectionToClient conn)
+    {
+        base.OnServerReady(conn);
+
+        fadeInOut.ShowScreenNoDelay();
+
+        if (conn.identity == null)
+        {
+            StartCoroutine(AddPlayerDelayed(conn));
+        }
+    }
+
+
+    IEnumerator AddPlayerDelayed(NetworkConnectionToClient conn)
+    {
+        while (subscenesLoaded == false)
+        {
+            yield return null;
+        }
+
+        NetworkIdentity[] allObjsWithANetworkIdentity = FindObjectsOfType<NetworkIdentity>();
+
+        foreach (var item in allObjsWithANetworkIdentity)
+        {
+            item.enabled = true;
+        }
+
+        firstSceneLoaded = false;
+
+        conn.Send(new SceneMessage { sceneName = firstSceneToLoad, sceneOperation = SceneOperation.LoadAdditive, customHandling = true });
+
+        Transform startPos = GetStartPosition();
+
+        GameObject player = Instantiate(playerPrefab, startPos);
+        player.transform.SetParent(null);
+
+        yield return new WaitForEndOfFrame();
+
+        SceneManager.MoveGameObjectToScene(player, SceneManager.GetSceneByName(firstSceneToLoad));
+
+        NetworkServer.AddPlayerForConnection(conn, player);
     }
 }
