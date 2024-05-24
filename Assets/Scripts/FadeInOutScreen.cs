@@ -4,17 +4,22 @@ using UnityEngine.UI;
 
 public class FadeInOutScreen : MonoBehaviour
 {
+
     public float speed = 1;
 
     private Image fadeOutScreen;
     private Color fadeColor = Color.black;
 
-    private void Start()
+
+
+
+    public void Start()
     {
         DontDestroyOnLoad(this.gameObject);
 
-        fadeOutScreen = this.GetComponentInChildren<Image>();
+        fadeOutScreen = this.GetComponentInChildren<Image>(true);
     }
+
 
     public void ShowScreenNoDelay()
     {
@@ -23,13 +28,14 @@ public class FadeInOutScreen : MonoBehaviour
         fadeOutScreen.gameObject.SetActive(true);
     }
 
+
     public IEnumerator FadeIn()
     {
         float alpha = fadeOutScreen.color.a;
 
         fadeOutScreen.gameObject.SetActive(true);
 
-        while (alpha < 1f)
+        while (alpha < 1)
         {
             yield return new WaitForSeconds(0.01f);
             alpha += 0.01f * speed;
@@ -49,10 +55,12 @@ public class FadeInOutScreen : MonoBehaviour
             fadeColor.a = alpha;
             fadeOutScreen.color = fadeColor;
 
-            if (fadeColor.a <= 0f)
+            if (fadeColor.a <= 0)
             {
                 fadeOutScreen.gameObject.SetActive(false);
             }
         }
     }
+
+
 }

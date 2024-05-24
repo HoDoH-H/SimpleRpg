@@ -28,6 +28,7 @@ public class GridBasedMovement : NetworkBehaviour
 
     private void OnEnable()
     {
+        movePoint.position = this.transform.position;
         move = playerControls.Player.Move;
         move.Enable();
     }

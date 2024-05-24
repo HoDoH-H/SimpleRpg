@@ -4,24 +4,28 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 using System.IO;
-using Mirror.Examples.AdditiveLevels;
 
 public class MyNetworkManager : NetworkManager
 {
+
     public string firstSceneToLoad;
     public FadeInOutScreen fadeInOut;
+
 
     private string[] scenesToLoad;
     private bool subscenesLoaded;
 
-    private readonly List<Scene> subScene = new List<Scene>();
+    private readonly List<Scene> subScenes = new List<Scene>();
 
     private bool isInTransition;
     private bool firstSceneLoaded;
 
+
+
+
     private void Start()
     {
-        int sceneCount = SceneManager.sceneCountInBuildSettings - 2;
+        int sceneCount = SceneManager.sceneCountInBuildSettings - 2; // subtract the Offline Scene and Persistent Scene
         scenesToLoad = new string[sceneCount];
 
         for (int i = 0; i < sceneCount; i++)
@@ -31,13 +35,18 @@ public class MyNetworkManager : NetworkManager
     }
 
 
+
     public override void OnServerSceneChanged(string sceneName)
     {
         base.OnServerSceneChanged(sceneName);
 
+
+        fadeInOut.ShowScreenNoDelay();
+
+
         if (sceneName == onlineScene)
         {
-            StartCoroutine(ServerLoadSubScene());
+            StartCoroutine(ServerLoadSubScenes());
         }
     }
 
@@ -49,32 +58,35 @@ public class MyNetworkManager : NetworkManager
         }
     }
 
-    IEnumerator ServerLoadSubScene()
+
+    IEnumerator ServerLoadSubScenes()
     {
         foreach (var additiveScene in scenesToLoad)
         {
             yield return SceneManager.LoadSceneAsync(additiveScene, new LoadSceneParameters
             {
                 loadSceneMode = LoadSceneMode.Additive,
-                localPhysicsMode = LocalPhysicsMode.Physics2D
+                localPhysicsMode = LocalPhysicsMode.Physics2D // change to .Physics3D for a 3D game
             });
         }
+
+        print(scenesToLoad.Length);
 
         subscenesLoaded = true;
     }
 
+
+
+
     public override void OnClientChangeScene(string sceneName, SceneOperation sceneOperation, bool customHandling)
     {
         if (sceneOperation == SceneOperation.UnloadAdditive)
-        {
             StartCoroutine(UnloadAdditive(sceneName));
-        }
 
         if (sceneOperation == SceneOperation.LoadAdditive)
-        {
             StartCoroutine(LoadAdditive(sceneName));
-        }
     }
+
 
     IEnumerator LoadAdditive(string sceneName)
     {
@@ -82,7 +94,7 @@ public class MyNetworkManager : NetworkManager
 
         yield return fadeInOut.FadeIn();
 
-        if(mode == NetworkManagerMode.ClientOnly)
+        if (mode == NetworkManagerMode.ClientOnly)
         {
             loadingSceneAsync = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
 
@@ -92,10 +104,13 @@ public class MyNetworkManager : NetworkManager
             }
         }
 
+
         NetworkClient.isLoadingScene = false;
         isInTransition = false;
 
+
         OnClientSceneChanged();
+
 
         if (firstSceneLoaded == false)
         {
@@ -110,8 +125,11 @@ public class MyNetworkManager : NetworkManager
             yield return new WaitForSeconds(0.5f);
         }
 
+
         yield return fadeInOut.FadeOut();
+
     }
+
 
     IEnumerator UnloadAdditive(string sceneName)
     {
@@ -119,38 +137,37 @@ public class MyNetworkManager : NetworkManager
 
         yield return fadeInOut.FadeIn();
 
+
         if (mode == NetworkManagerMode.ClientOnly)
         {
             yield return SceneManager.UnloadSceneAsync(sceneName);
             yield return Resources.UnloadUnusedAssets();
         }
 
+
         NetworkClient.isLoadingScene = false;
-        isInTransition = false; 
-        
+        isInTransition = false;
+
         OnClientSceneChanged();
+
     }
+
+
 
 
     public override void OnServerReady(NetworkConnectionToClient conn)
     {
         base.OnServerReady(conn);
 
-        fadeInOut.ShowScreenNoDelay();
-
         if (conn.identity == null)
-        {
             StartCoroutine(AddPlayerDelayed(conn));
-        }
     }
-
 
     IEnumerator AddPlayerDelayed(NetworkConnectionToClient conn)
     {
         while (subscenesLoaded == false)
-        {
             yield return null;
-        }
+
 
         NetworkIdentity[] allObjsWithANetworkIdentity = FindObjectsOfType<NetworkIdentity>();
 
@@ -161,17 +178,33 @@ public class MyNetworkManager : NetworkManager
 
         firstSceneLoaded = false;
 
+        
+
         conn.Send(new SceneMessage { sceneName = firstSceneToLoad, sceneOperation = SceneOperation.LoadAdditive, customHandling = true });
 
         Transform startPos = GetStartPosition();
 
+
         GameObject player = Instantiate(playerPrefab, startPos);
         player.transform.SetParent(null);
+        if (player.TryGetComponent<GridBasedMovement>(out GridBasedMovement playerMoveScript))
+        {
+            playerMoveScript.enabled = false;
+        }
 
-        yield return new WaitForEndOfFrame();
+            yield return new WaitForEndOfFrame();
+
 
         SceneManager.MoveGameObjectToScene(player, SceneManager.GetSceneByName(firstSceneToLoad));
 
+        GameObject spawnPoint = GameObject.FindGameObjectWithTag("Spawn");
+        player.transform.position = spawnPoint.transform.position;
+
+        playerMoveScript.enabled = true;
+
         NetworkServer.AddPlayerForConnection(conn, player);
+
     }
+
+
 }
