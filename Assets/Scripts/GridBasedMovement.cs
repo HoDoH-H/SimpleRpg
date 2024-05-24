@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Mirror;
+using Mirror.Examples.AdditiveLevels;
+using Unity.Cinemachine;
 
 public class GridBasedMovement : NetworkBehaviour
 {
@@ -24,6 +26,12 @@ public class GridBasedMovement : NetworkBehaviour
     void Start()
     {
         movePoint.parent = null;
+
+        if (isLocalPlayer)
+        {
+            GameObject camera = GameObject.FindGameObjectWithTag("MainCamera");
+            camera.GetComponent<CinemachineCamera>().Follow = movePoint;
+        }
     }
 
     private void OnEnable()
@@ -63,6 +71,7 @@ public class GridBasedMovement : NetworkBehaviour
             {
                 if (Mathf.Abs(direction.x) > 0)
                 {
+                    
                     if (!Physics2D.OverlapCircle(movePoint.position + new Vector3(direction.x, 0, 0), 0.45f, whatStopsMovement))
                     {
                         movePoint.position += new Vector3(direction.x, 0, 0);
